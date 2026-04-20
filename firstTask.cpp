@@ -1,24 +1,25 @@
 #include <iostream>
-#include <clocale>
+#include <fstream>
+#include <string>
 #include <windows.h>
 
 using namespace std;
 
-int N = 20;
+const int N = 20;
 string tourist_towns[5] = {"Москва", "Санкт-Петербург", "Екатеринбург", "Пермь", "Ярославль"};
 
-struct time {
+struct time_s {
     int h, m, s;
 };
 
 struct route {
-    string name; // название маршрута
-    string start; // пункт отправления
-    string end; // пункт прибытия
-    struct time departure_time; // время отправления
-    struct time arrival_time; // время прибытия
-    int carriages; // количество вагонов
-    string type; // тип электропоезда
+    string name;              // название маршрута
+    string start;             // пункт отправления
+    string end;               // пункт прибытия
+    time_s departure_time;    // время отправления
+    time_s arrival_time;      // время прибытия
+    int carriages;            // количество вагонов
+    string type;              // тип электропоезда
 };
 
 route* init() {
@@ -48,26 +49,11 @@ route* init() {
 
 bool found_town(string name) {
     for (int i = 0; i < size(tourist_towns); ++i) {
-        if (name == tourist_towns[i])
+        if (name == tourist_towns[i]) {
             return true;
+        }
     }
     return false;
-}
-
-route* bubbleSort(route* shedule, bool(*cmp) (route, route)) {
-    route* local_copy = new route[N];
-    copy(shedule, shedule + N, local_copy);
-    for (int i = 0; i < N - 1; ++i) {
-        bool swapped = false;
-        for (int j = 0; j < N - i - 1; ++j) {
-            if (cmp(local_copy[j + 1], local_copy[j])) {
-                swap(local_copy[j + 1], local_copy[j]);
-                swapped = true;
-            }
-        }
-        if (!swapped) break;
-    }
-    return local_copy;
 }
 
 bool cmp_start(route a, route b) {
@@ -82,100 +68,147 @@ bool cmp_size_and_passanger(route a, route b) {
     return false;
 }
 
-void print_route(route r) {
-    cout << r.name << ' ' << r.start << ' ' << r.end
-         << " {" << r.departure_time.h << ':' << r.departure_time.m << ':' << r.departure_time.s << "} "
-         << r.carriages << ' ' << r.type << '\n';
+route* bubbleSort(route shedule[], bool(*cmp)(route, route)) {
+    for (int i = 0; i < N - 1; ++i) {
+        bool swapped = false;
+        for (int j = 0; j < N - i - 1; ++j) {
+            if (cmp(shedule[j + 1], shedule[j])) {
+                swap(shedule[j + 1], shedule[j]);
+                swapped = true;
+            }
+        }
+        if (!swapped)
+            break;
+    }
+    return shedule;
+}
+
+void print_route(const route& r) {
+    cout << r.name << " | "
+         << r.start << " -> " << r.end << " | "
+         << r.departure_time.h << ":" << r.departure_time.m << ":" << r.departure_time.s << " | "
+         << r.arrival_time.h << ":" << r.arrival_time.m << ":" << r.arrival_time.s << " | "
+         << r.carriages << " | " << r.type << '\n';
 }
 
 void print_shedule(route shedule[], int n = N) {
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < n; ++i)
         print_route(shedule[i]);
-    }
 }
 
-void print_filtered_routes(route shedule[], bool(*filter)(route), int n = N) {
-    for (int i = 0; i < n; ++i) {
-        if (filter(shedule[i])) {
+void print_filtered_routes(route shedule[], int n, bool(*filter)(route)) {
+    for (int i = 0; i < n; ++i)
+        if (filter(shedule[i]))
             print_route(shedule[i]);
-        }
-    }
 }
 
-// Фильтр: маршрут идёт в туристический город
 bool filter_tourist(route r) {
     return found_town(r.end);
 }
 
-// Фильтр: только пассажирские поезда
 bool filter_passanger(route r) {
     return r.type == "Пассажирский";
 }
 
-void change_route(route shedule[]) {
-    cout << "Введите номер маршрута, который нужно поменять: ";
-    int ind;
-    cin >> ind;
-    cout << "Введите новое имя маршрута: ";
-    string name;
-    cin.ignore();
-    getline(cin, name);
-    cout << "Введите пункт отправления поезда: ";
-    string start;
-    cin >> start;
-    cout << "Введите пункт прибытия поезда: ";
-    string end;
-    cin >> end;
-    cout << "Введите время отправления поезда в формате <hh:mm:ss>: ";
-    struct time departure_time;
-    char bfr;
-    cin >> departure_time.h >> bfr >> departure_time.m >> bfr >> departure_time.s;
-    cout << "Введите время прибытия поезда в формате <hh:mm:ss>: ";
-    struct time arrival_time;
-    cin >> arrival_time.h >> bfr >> arrival_time.m >> bfr >> arrival_time.s;
-    cout << "Введите кол-во вагонов поезда: ";
-    int carriages;
-    cin >> carriages;
-    cout << "Введите тип поезда: ";
-    string type;
-    cin >> type;
-    for (int i = 0; i < N; ++i) {
-        if (shedule[i].name.rfind(to_string(ind)) != string::npos) {
-            shedule[i] = route(name, start, end, departure_time, arrival_time, carriages, type);
-            return;
-        }
+void read_carriages_from_text_file(route shedule[], int n, string filename) { // 1 задание из 10 практики
+    ifstream fin(filename);
+    if (!fin) {
+        cout << "Не удалось открыть текстовый файл " << filename << '\n';
+        return;
     }
-    cout << "Такого маршрута нет\n";
+    int route_number, new_carriages;
+    while (fin >> route_number >> new_carriages)
+        if (route_number >= 1 && route_number <= n)
+            shedule[route_number - 1].carriages = new_carriages;
+    fin.close();
+}
+
+void write_string_binary(ofstream& fout, string str) {
+    int len = str.size();
+    fout.write((char*)&len, sizeof(len));
+    fout.write(str.c_str(), len);
+}
+
+void read_string_binary(ifstream& fin, string& str) {
+    int len;
+    fin.read((char*)&len, sizeof(len));
+    char* buffer = new char[len + 1];
+    fin.read(buffer, len);
+    buffer[len] = '\0';
+    str = buffer;
+    delete[] buffer;
+}
+
+void write_route_binary(ofstream& fout, route& r) {
+    write_string_binary(fout, r.name);
+    write_string_binary(fout, r.start);
+    write_string_binary(fout, r.end);
+    fout.write((char*)&r.departure_time, sizeof(r.departure_time));
+    fout.write((char*)&r.arrival_time, sizeof(r.arrival_time));
+    fout.write((char*)&r.carriages, sizeof(r.carriages));
+    write_string_binary(fout, r.type);
+}
+
+void read_route_binary(ifstream& fin, route& r) {
+    read_string_binary(fin, r.name);
+    read_string_binary(fin, r.start);
+    read_string_binary(fin, r.end);
+    fin.read((char*)&r.departure_time, sizeof(r.departure_time));
+    fin.read((char*)&r.arrival_time, sizeof(r.arrival_time));
+    fin.read((char*)&r.carriages, sizeof(r.carriages));
+    read_string_binary(fin, r.type);
+}
+
+void save_shedule_to_binary(route shedule[], int n, const string& filename) {
+    ofstream fout(filename, ios::binary);
+    if (!fout) {
+        cout << "Не удалось открыть бинарный файл " << filename << " для записи\n";
+        return;
+    }
+    fout.write((char*)&n, sizeof(n));
+    for (int i = 0; i < n; ++i)
+        write_route_binary(fout, shedule[i]);
+    fout.close();
+}
+
+route* load_shedule_from_binary(int& n, const string& filename) {
+    ifstream fin(filename, ios::binary);
+    if (!fin) {
+        cout << "Не удалось открыть бинарный файл " << filename << " для чтения\n";
+        n = 0;
+        return nullptr;
+    }
+    fin.read((char*)&n, sizeof(n));
+    route* shedule = new route[n];
+    for (int i = 0; i < n; ++i)
+        read_route_binary(fin, shedule[i]);
+    fin.close();
+    return shedule;
 }
 
 int main() {
     SetConsoleCP(CP_UTF8);
     SetConsoleOutputCP(CP_UTF8);
-    route *shedule = init();
-    cout << "-------------------------------------Распиание-------------------------------------\n";
+    route* shedule = init();
+    cout << "-------------------- Исходное расписание --------------------\n";
     print_shedule(shedule);
-    route tourist_shedule[N];
-    for (int i = 0, cur_ind = 0; i < N; ++i) {
-        if (found_town(shedule[i].end))
-            tourist_shedule[cur_ind++] = shedule[i];
-    }
-    cout << "-------------------------------------Маршруты в туристические города-------------------------------------\n";
-    print_filtered_routes(shedule, filter_tourist);
-    cout << "-------------------------------------Сортировка по пункту отправления-------------------------------------\n";
-    route *sorted_shedule = bubbleSort(shedule, cmp_start);
-    print_shedule(sorted_shedule);
-    cout << "-------------------------------------3 самых коротких пассажирских поездов-------------------------------------\n";
-    sorted_shedule = bubbleSort(shedule, cmp_size_and_passanger);
-    print_shedule(sorted_shedule, 3);
-    cout << "-------------------------------------Изменение маршрута-------------------------------------\n";
-    change_route(shedule);
+    cout << "\n-------------------- Маршруты в туристические города --------------------\n";
+    print_filtered_routes(shedule, N, filter_tourist);
+    cout << "\n-------------------- Сортировка по пункту отправления --------------------\n";
+    shedule = bubbleSort(shedule, cmp_start);
     print_shedule(shedule);
-    // 2
-    // Маршрут 21
-    // Ош
-    // Бишкек
-    // 12:30:12
-    // 17:02:58
-    // 7
-    // Пассажирский
+    cout << "\n-------------------- 3 самых коротких пассажирских поезда --------------------\n";
+    shedule = bubbleSort(shedule, cmp_size_and_passanger);
+    print_shedule(shedule, 3);
+    cout << "\n-------------------- Чтение числового поля из текстового файла --------------------\n";
+    read_carriages_from_text_file(shedule, N, "routes.txt");
+    print_shedule(shedule);
+    cout << "\n-------------------- Запись в бинарный файл --------------------\n";
+    save_shedule_to_binary(shedule, N, "routes_out.txt");
+    cout << "Данные записаны в файл routes.dat\n";
+    cout << "\n-------------------- Чтение из бинарного файла --------------------\n";
+    int n = 0;
+    route* loaded = load_shedule_from_binary(n, "routes_out.txt");
+    if (loaded != nullptr)
+        print_shedule(loaded, n);
 }
