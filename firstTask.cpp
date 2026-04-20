@@ -200,12 +200,13 @@ int main() {
     cout << "\n-------------------- 3 самых коротких пассажирских поезда --------------------\n";
     shedule = bubbleSort(shedule, cmp_size_and_passanger);
     print_shedule(shedule, 3);
-    cout << "\n-------------------- Чтение числового поля из текстового файла --------------------\n";
+    cout << "\n-------------------- Чтение числового поля из текстового файла и изменение данных в маршруте --------------------\n";
+    // последние задание из 9 занятие + 1 задание из 10 занятия
     read_carriages_from_text_file(shedule, N, "routes.txt");
     print_shedule(shedule);
     cout << "\n-------------------- Запись в бинарный файл --------------------\n";
     save_shedule_to_binary(shedule, N, "routes_out.txt");
-    cout << "Данные записаны в файл routes.dat\n";
+    cout << "Данные записаны в файл routes_out.txt\n";
     cout << "\n-------------------- Чтение из бинарного файла --------------------\n";
     int n = 0;
     route* loaded = load_shedule_from_binary(n, "routes_out.txt");
